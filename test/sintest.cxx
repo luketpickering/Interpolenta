@@ -131,38 +131,21 @@ int main() {
     p2.cd();
     sing2_g_rare.Draw("P0");
 
-    double shape = 1;
-
-    Eigen::MatrixXd pmat = FillPhiMatrix(RBFs, shape);
-    Eigen::VectorXd ipvec = FillInterpolandVector(RBFs);
-
-    std::cout << "Solving" << std::endl;
-    Eigen::VectorXd soln = pmat.colPivHouseholderQr().solve(ipvec);
-    std::cout << "Done!" << std::endl;
-
-    std::cout << ((pmat * soln) - ipvec) << std::endl;
-
-    std::vector<TGraph2D> RBF_gs(n_data_points);
+    Eigen::MatrixXd KnotMatrix = to_knots(RBFs);
+    Interpolenta interpol(KnotMatrix);
+    Eigen::Matrix<double, 2, 1> X;
 
     TGraph2D Interpolated_g;
 
     int npoints_check = 0;
     for (int i = 0; i < npoints; ++i) {
       for (int j = 0; j < npoints; ++j) {
-        double x = (double(i) * (MY_PI * 2.0 * periods / double(npoints))) -
-                   (MY_PI * periods);
-        double y = (double(j) * (MY_PI * 2.0 * periods / double(npoints))) -
-                   (MY_PI * periods);
+        X(0) = (double(i) * (MY_PI * 2.0 * periods / double(npoints))) -
+               (MY_PI * periods);
+        X(1) = (double(j) * (MY_PI * 2.0 * periods / double(npoints))) -
+               (MY_PI * periods);
 
-        double sum = 0;
-        for (size_t r = 0; r < n_data_points; ++r) {
-          double val = soln(r) *
-                       RBF_kernel(norm2(RBFs[r][0] - x, RBFs[r][1] - y), shape);
-          // RBF_gs[r].SetPoint(npoints_check, x, y, val);
-          sum += val;
-        }
-
-        Interpolated_g.SetPoint(npoints_check++, x, y, sum);
+        Interpolated_g.SetPoint(npoints_check++, X(0), X(1), interpol.Eval(X));
       }
     }
 
@@ -170,7 +153,6 @@ int main() {
     Interpolated_g.SetMarkerSize(1);
 
     p3.cd();
-
     Interpolated_g.Draw("PCOL");
 
     p4.cd();
