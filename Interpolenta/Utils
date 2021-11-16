@@ -1,0 +1,16 @@
+#pragma once
+
+#include "Eigen/Dense"
+
+template <typename PRECISION = double, size_t N>
+Eigen::Matrix<PRECISION, Eigen::Dynamic, Eigen::Dynamic>
+to_knots(std::vector<std::array<PRECISION, N>> const &knots) {
+  Eigen::Matrix<PRECISION, Eigen::Dynamic, Eigen::Dynamic> ret =
+      Eigen::Matrix<PRECISION, Eigen::Dynamic, Eigen::Dynamic>::Zero(knots.size(), N);
+  for (size_t i = 0; i < knots.size(); ++i) {
+    for (size_t j = 0; j < N; ++j) {
+      ret(i, j) = knots[i][j];
+    }
+  }
+  return ret;
+}

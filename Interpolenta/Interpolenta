@@ -1,0 +1,71 @@
+#pragma once
+
+#include "Eigen/Dense"
+
+#include <array>
+#include <cmath>
+#include <functional>
+#include <iostream>
+
+template <typename PRECISION = double> class Interpolenta {
+
+public:
+  using PMat = Eigen::Matrix<PRECISION, Eigen::Dynamic, Eigen::Dynamic>;
+  using PCVec = Eigen::Matrix<PRECISION, Eigen::Dynamic, 1>;
+  using PRVec = Eigen::Matrix<PRECISION, 1, Eigen::Dynamic>;
+
+  Interpolenta(PMat const &knots, PRECISION sh = 1) : shape_param(sh) {
+    size_t nknots = knots.rows();
+    size_t ndims = knots.cols() - 1;
+
+    PMat Phi = PMat::Zero(nknots, nknots);
+    KnotPoints = knots.leftCols(ndims);
+    PCVec K = knots.rightCols(1);
+
+    for (size_t i = 0; i < nknots; ++i) {
+      for (size_t j = 0; j < nknots; ++j) {
+        Phi(i, j) = RBF_kernel((KnotPoints.row(i) - KnotPoints.row(j)).norm());
+      }
+    }
+
+    Coeffs = Phi.colPivHouseholderQr().solve(K);
+  }
+
+  PCVec Norm2Disp(PCVec const &point) {
+    size_t nknots = KnotPoints.rows();
+    PMat disp_matrix = PMat::Zero(nknots, KnotPoints.cols());
+    PCVec n2d = PCVec::Zero(nknots);
+    for (size_t i = 0; i < nknots; ++i) {
+      disp_matrix.row(i) = KnotPoints.row(i) - point;
+      n2d(i) = disp_matrix.row(i).norm();
+    }
+    return n2d;
+  }
+
+  PRECISION Eval(PCVec const &point) {
+    PCVec n2d = Norm2Disp(point);
+    size_t nknots = KnotPoints.rows();
+
+    for (size_t i = 0; i < nknots; ++i) {
+      n2d(i) = RBF_kernel(n2d(i));
+    }
+
+    return Coeffs * n2d;
+  }
+
+  PRECISION Eval_BF(size_t i, PCVec const &point) {
+    if (i >= Coeffs.cols()) {
+      return 0;
+    }
+    return Coeffs(i) * RBF_kernel((KnotPoints.row(i) - point).norm());
+  }
+
+private:
+  PRECISION RBF_kernel(PRECISION r) {
+    return std::exp(-std::pow(r * shape_param, 2));
+  }
+
+  PRECISION shape_param;
+  PRVec Coeffs;
+  PMat KnotPoints;
+};
